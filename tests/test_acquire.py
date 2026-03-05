@@ -80,19 +80,12 @@ class TestLidar:
 class TestParcelsPermits:
     """Test parcels/permits acquisition with mocked HTTP."""
 
-    @patch("pipeline.acquire.parcels_permits.requests.get")
-    def test_acquire_parcels_queries_colorado_gis(self, mock_get, tmp_path):
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {"features": []}
-        mock_resp.raise_for_status.return_value = None
-        mock_get.return_value = mock_resp
-
-        with patch("pipeline.acquire.parcels_permits.OUT_PARCELS", tmp_path):
-            from pipeline.acquire.parcels_permits import acquire_parcels
-            acquire_parcels()
-
-        args, kwargs = mock_get.call_args
-        assert "gis.colorado.gov" in args[0]
+    def test_check_local_data_returns_dict(self):
+        from pipeline.acquire.parcels_permits import check_local_data
+        status = check_local_data()
+        assert "parcel_shp" in status
+        assert "permits_csv" in status
+        assert "account_parcels_csv" in status
 
     @patch("pipeline.acquire.parcels_permits.requests.get")
     def test_acquire_fema_damage_queries_fema(self, mock_get, tmp_path):

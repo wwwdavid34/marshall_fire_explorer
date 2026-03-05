@@ -18,9 +18,29 @@ sources:
         meta:
           external_location: "read_parquet('../data/tabular/lidar_zonal_stats.parquet')"
       - name: parcels
-        description: "Boulder County parcel boundaries"
+        description: "Boulder County parcel boundaries (Shapefile, EPSG:2876)"
         meta:
-          external_location: "st_read('../data/raw/parcels/boulder_county_parcels.geojson')"
+          external_location: "st_read('../data/raw/Parcel/Parcel.shp')"
+      - name: account_parcels
+        description: "Join table mapping account strap to PARCEL_NO"
+        meta:
+          external_location: "read_csv_auto('../data/raw/Account_Parcels.csv')"
+      - name: permits
+        description: "Boulder County building permits"
+        meta:
+          external_location: "read_csv_auto('../data/raw/Permits.csv')"
+      - name: buildings
+        description: "Boulder County building characteristics per account"
+        meta:
+          external_location: "read_csv_auto('../data/raw/Buildings.csv')"
+      - name: values
+        description: "Boulder County property values per account per tax year"
+        meta:
+          external_location: "read_csv_auto('../data/raw/Values.csv')"
+      - name: sales
+        description: "Boulder County property sales history"
+        meta:
+          external_location: "read_csv_auto('../data/raw/Sales.csv')"
       - name: fema_damage
         description: "FEMA Marshall Fire damage assessment"
         meta:

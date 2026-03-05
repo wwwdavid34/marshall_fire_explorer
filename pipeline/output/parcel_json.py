@@ -15,7 +15,7 @@ import geopandas as gpd
 logger = logging.getLogger(__name__)
 
 RESULTS_DIR = Path("data/results/parcels")
-PARCELS_PATH = Path("data/raw/parcels/boulder_county_parcels.geojson")
+PARCELS_PATH = Path("data/raw/Parcel/Parcel.shp")
 
 
 def _get_db_path() -> str:

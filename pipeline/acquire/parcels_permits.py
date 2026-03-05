@@ -1,9 +1,14 @@
-"""Download Boulder County parcel boundaries, building permits, and FEMA damage data.
+"""Acquire Boulder County parcel boundaries, building permits, and FEMA damage data.
+
+NOTE: Parcel vector data (Shapefile) and assessor CSVs are downloaded manually
+from https://bouldercounty.gov/property-and-land/assessor/data-download/
+and placed in data/raw/. See data/raw/Parcel/ and data/raw/*.csv.
 
 Data sources (all free, no auth):
-  - Parcels: Colorado GIS MapServer Layer 3 (Boulder County)
-  - Permits: Boulder County Assessor data download
-  - Ground truth: FEMA Marshall Fire Final Damage Assessment
+  - Parcels: Boulder County Assessor Shapefile (data/raw/Parcel/Parcel.shp)
+  - Permits: Boulder County Assessor CSV (data/raw/Permits.csv)
+  - Account→Parcel map: data/raw/Account_Parcels.csv (strap → Parcelno)
+  - Ground truth: FEMA Marshall Fire Final Damage Assessment (ArcGIS REST)
 """
 
 import logging
@@ -16,11 +21,13 @@ from config.settings import AOI
 
 logger = logging.getLogger(__name__)
 
-# Colorado statewide parcel service — Layer 3 = Boulder County
-PARCELS_BASE_URL = (
-    "https://gis.colorado.gov/public/rest/services/"
-    "Parcels/Public_Parcel_Map_Services/MapServer/3/query"
-)
+# Local paths for manually downloaded Boulder County data
+PARCEL_SHP = Path("data/raw/Parcel/Parcel.shp")
+PERMITS_CSV = Path("data/raw/Permits.csv")
+ACCOUNT_PARCELS_CSV = Path("data/raw/Account_Parcels.csv")
+BUILDINGS_CSV = Path("data/raw/Buildings.csv")
+VALUES_CSV = Path("data/raw/Values.csv")
+SALES_CSV = Path("data/raw/Sales.csv")
 
 # FEMA Remotely Sensed Building Level Damage Assessments (nationwide, Layer 1)
 # Filtered by AOI bbox to get Marshall Fire records
@@ -29,11 +36,9 @@ FEMA_DAMAGE_URL = (
     "FEMA_Damage_Assessments/FeatureServer/1/query"
 )
 
-# Boulder County Assessor data download (CSV)
+# Boulder County Assessor data download page
 ASSESSOR_DATA_URL = "https://bouldercounty.gov/property-and-land/assessor/data-download/"
 
-OUT_PARCELS = Path("data/raw/parcels")
-OUT_PERMITS = Path("data/raw/permits")
 OUT_GROUND_TRUTH = Path("data/raw/ground_truth")
 
 MAX_RECORDS_PER_PAGE = 2000
@@ -83,24 +88,16 @@ def _query_arcgis_geojson(
     return gpd.GeoDataFrame.from_features(geojson, crs="EPSG:4326")
 
 
-def acquire_parcels(bbox: list[float] | None = None) -> Path | None:
-    """Download Boulder County parcel boundaries as GeoJSON."""
-    bbox = bbox or AOI
-    dest = OUT_PARCELS / "boulder_county_parcels.geojson"
-    if dest.exists():
-        logger.info("  %s already exists — skipping", dest)
-        return dest
-
-    logger.info("  querying Colorado GIS for parcels in AOI")
-    gdf = _query_arcgis_geojson(PARCELS_BASE_URL, bbox)
-    if gdf.empty:
-        logger.warning("  no parcels returned — check AOI or endpoint")
-        return None
-
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    gdf.to_file(dest, driver="GeoJSON")
-    logger.info("  saved %d parcels to %s", len(gdf), dest)
-    return dest
+def check_local_data() -> dict[str, bool]:
+    """Check which local data files are present."""
+    return {
+        "parcel_shp": PARCEL_SHP.exists(),
+        "permits_csv": PERMITS_CSV.exists(),
+        "account_parcels_csv": ACCOUNT_PARCELS_CSV.exists(),
+        "buildings_csv": BUILDINGS_CSV.exists(),
+        "values_csv": VALUES_CSV.exists(),
+        "sales_csv": SALES_CSV.exists(),
+    }
 
 
 def acquire_fema_damage(bbox: list[float] | None = None) -> Path | None:
@@ -123,36 +120,36 @@ def acquire_fema_damage(bbox: list[float] | None = None) -> Path | None:
     return dest
 
 
-def acquire_permits() -> Path | None:
-    """Download Boulder County building permits CSV.
-
-    Boulder County publishes assessor data at a known download page.
-    This function fetches the permits dataset. If the direct CSV URL
-    changes, update PERMITS_CSV_URL.
-    """
-    dest = OUT_PERMITS / "boulder_county_permits.csv"
-    if dest.exists():
-        logger.info("  %s already exists — skipping", dest)
-        return dest
-
-    # Boulder County publishes permit data through their open data portal.
-    # The exact CSV URL may change; log instructions if download fails.
-    logger.warning(
-        "  Automated permit download not yet available. "
-        "Please download manually from: %s "
-        "and save to %s",
-        ASSESSOR_DATA_URL,
-        dest,
-    )
-    return None
-
-
 def acquire_parcels_permits() -> None:
-    """Download parcel GeoJSON, permits CSV, and FEMA damage data."""
-    logger.info("acquire_parcels_permits: downloading parcel boundaries, permits, and ground truth")
+    """Verify local parcel/permit data and download FEMA damage data."""
+    logger.info("acquire_parcels_permits: checking local data and fetching FEMA damage")
 
-    acquire_parcels()
+    # Check local files
+    status = check_local_data()
+    if status["parcel_shp"]:
+        gdf = gpd.read_file(PARCEL_SHP)
+        logger.info("  Parcel shapefile: %d parcels (EPSG:%s)", len(gdf), gdf.crs.to_epsg())
+    else:
+        logger.warning(
+            "  Parcel shapefile not found at %s — download from %s",
+            PARCEL_SHP, ASSESSOR_DATA_URL,
+        )
+
+    if status["permits_csv"]:
+        n = sum(1 for _ in open(PERMITS_CSV)) - 1
+        logger.info("  Permits CSV: %d records", n)
+    else:
+        logger.warning(
+            "  Permits CSV not found at %s — download from %s",
+            PERMITS_CSV, ASSESSOR_DATA_URL,
+        )
+
+    if status["account_parcels_csv"]:
+        logger.info("  Account_Parcels.csv found (strap → Parcelno join table)")
+    else:
+        logger.warning("  Account_Parcels.csv not found — needed to join permits to parcels")
+
+    # FEMA damage is the only thing we download programmatically
     acquire_fema_damage()
-    acquire_permits()
 
     logger.info("acquire_parcels_permits: done")
