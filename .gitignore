@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/
+
+# Environment
+.env
+
+# Data (large, pipeline-generated)
+data/
+
+# ML weights (stored in R2)
+ml/models/*.pt
+ml/models/*.keras
+ml/models/*.h5
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# MLflow
+mlflow/
+mlruns/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Claude Code
+.claude/
+
+# Misc
+firebase-debug.log
