@@ -1,0 +1,12 @@
+name: marshall_fire
+version: "0.1.0"
+config-version: 2
+
+profile: marshall_fire
+
+model-paths: ["models"]
+test-paths: ["tests"]
+
+clean-targets:
+  - target
+  - dbt_packages
