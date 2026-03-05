@@ -1,6 +1,8 @@
 """Single entry point for the Marshall Fire pipeline."""
 
 import logging
+import subprocess
+from pathlib import Path
 
 import click
 
@@ -20,8 +22,27 @@ logger = logging.getLogger(__name__)
 
 
 def run_dbt() -> None:
+    """Run dbt models to build the DuckDB mart from zonal stats parquet."""
     logger.info("run_dbt: executing dbt run")
-    logger.info("run_dbt: not yet implemented — skipping")
+    dbt_dir = Path("dbt")
+    if not dbt_dir.exists():
+        logger.warning("run_dbt: dbt/ directory not found — skipping")
+        return
+    try:
+        result = subprocess.run(
+            ["dbt", "run", "--profiles-dir", str(dbt_dir), "--project-dir", str(dbt_dir)],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode == 0:
+            logger.info("run_dbt: dbt run succeeded")
+        else:
+            logger.warning("run_dbt: dbt run failed:\n%s", result.stderr[:500])
+    except FileNotFoundError:
+        logger.warning("run_dbt: dbt not installed — skipping (pip install dbt-duckdb)")
+    except subprocess.TimeoutExpired:
+        logger.error("run_dbt: dbt run timed out")
 
 
 def run_damage_inference() -> None:

@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw parquet files from pipeline processing + acquired vector data"
+    schema: main
+    tables:
+      - name: sar_zonal_stats
+        description: "SAR VV/VH change statistics per parcel per observation date"
+        meta:
+          external_location: "read_parquet('../data/tabular/sar_zonal_stats.parquet')"
+      - name: landsat_zonal_stats
+        description: "Landsat dNBR, NDVI, TIR, SWIR2 statistics per parcel per observation date"
+        meta:
+          external_location: "read_parquet('../data/tabular/landsat_zonal_stats.parquet')"
+      - name: lidar_zonal_stats
+        description: "LiDAR DEM, DSM, CHM statistics per parcel"
+        meta:
+          external_location: "read_parquet('../data/tabular/lidar_zonal_stats.parquet')"
+      - name: parcels
+        description: "Boulder County parcel boundaries"
+        meta:
+          external_location: "st_read('../data/raw/parcels/boulder_county_parcels.geojson')"
+      - name: fema_damage
+        description: "FEMA Marshall Fire damage assessment"
+        meta:
+          external_location: "st_read('../data/raw/ground_truth/marshall_fire_fema_damage.geojson')"
