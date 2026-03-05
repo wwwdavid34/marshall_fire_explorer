@@ -1,7 +1,8 @@
-"""Fetch Sentinel-1 GRD scenes from Planetary Computer (free, no auth required).
+"""Fetch Sentinel-1 RTC scenes from Planetary Computer (free, no auth required).
 
 Downloads VV and VH polarisation bands as GeoTIFF for each observation date,
-clipped to the project AOI.
+clipped to the project AOI.  RTC (Radiometrically Terrain Corrected) products
+are geocoded COGs in UTM with proper CRS, unlike raw GRD.
 """
 
 import logging
@@ -10,6 +11,7 @@ from pathlib import Path
 import planetary_computer
 import pystac_client
 import rasterio
+from rasterio.warp import transform_bounds
 from rasterio.windows import from_bounds
 
 from config.settings import AOI, OBSERVATION_DATES
@@ -17,7 +19,7 @@ from config.settings import AOI, OBSERVATION_DATES
 logger = logging.getLogger(__name__)
 
 PC_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
-COLLECTION = "sentinel-1-grd"
+COLLECTION = "sentinel-1-rtc"
 BANDS = ["vv", "vh"]
 OUT_DIR = Path("data/raw/sentinel1")
 
@@ -34,9 +36,10 @@ def _date_range(year_month: str) -> str:
 
 
 def _download_band(asset_href: str, bbox: list[float], dest: Path) -> None:
-    """Read a single band from a COG asset, windowed to the AOI bbox."""
+    """Read a single band from an RTC COG asset, windowed to the AOI bbox."""
     with rasterio.open(asset_href) as src:
-        window = from_bounds(*bbox, transform=src.transform)
+        native_bounds = transform_bounds("EPSG:4326", src.crs, *bbox)
+        window = from_bounds(*native_bounds, transform=src.transform)
         data = src.read(1, window=window)
         profile = src.profile.copy()
         profile.update(
@@ -51,7 +54,7 @@ def _download_band(asset_href: str, bbox: list[float], dest: Path) -> None:
 
 
 def acquire_sentinel1() -> None:
-    """Download Sentinel-1 GRD VV/VH scenes for all observation dates."""
+    """Download Sentinel-1 RTC VV/VH scenes for all observation dates."""
     logger.info("acquire_sentinel1: fetching %d dates for AOI %s", len(OBSERVATION_DATES), AOI)
 
     catalog = pystac_client.Client.open(

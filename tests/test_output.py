@@ -44,7 +44,7 @@ class TestRegistryStructure:
         assert "aoi" in data
         assert "observation_dates" in data
         assert "data" in data
-        assert data["aoi"]["bbox"] == [-105.16, 39.93, -105.07, 40.01]
+        assert data["aoi"]["bbox"] == [-105.23, 39.915, -105.12, 39.98]
 
 
 class TestTimelineStructure:
