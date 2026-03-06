@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useStore } from "../store";
 import { AboutPanel } from "./AboutPanel";
 
 export function TitleBar() {
-  const [showAbout, setShowAbout] = useState(false);
+  const { showAbout, setShowAbout } = useStore();
 
   return (
     <>
@@ -32,7 +32,7 @@ export function TitleBar() {
           </a>
           <button
             className="about-button"
-            onClick={() => setShowAbout((v) => !v)}
+            onClick={() => setShowAbout(!showAbout)}
           >
             {showAbout ? "Close" : "About"}
           </button>

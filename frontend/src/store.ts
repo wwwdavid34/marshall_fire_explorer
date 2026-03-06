@@ -10,6 +10,8 @@ interface AppState {
   toggleDamageClass: (cls: string) => void;
   recoveryFilter: RecoveryFilter;
   setRecoveryFilter: (filter: RecoveryFilter) => void;
+  showAbout: boolean;
+  setShowAbout: (show: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -25,4 +27,6 @@ export const useStore = create<AppState>((set) => ({
     }),
   recoveryFilter: "all",
   setRecoveryFilter: (filter) => set({ recoveryFilter: filter }),
+  showAbout: false,
+  setShowAbout: (show) => set({ showAbout: show }),
 }));
