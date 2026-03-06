@@ -8,7 +8,7 @@ export function TitleBar() {
     <>
       <div className="title-bar">
         <div className="title-bar-left">
-          <img src="/fire.svg" alt="" className="title-bar-icon" />
+          <img src={`${import.meta.env.BASE_URL}fire.svg`} alt="" className="title-bar-icon" />
           <span className="title-bar-text">Marshall Fire Parcel Explorer</span>
         </div>
         <div className="title-bar-right">
