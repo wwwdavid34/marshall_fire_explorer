@@ -1,98 +1,88 @@
-"""Fetch Sentinel-1 RTC scenes from Planetary Computer (free, no auth required).
+"""Download OPERA CSLC (Coregistered Single Look Complex) from ASF.
 
-Downloads VV and VH polarisation bands as GeoTIFF for each observation date,
-clipped to the project AOI.  RTC (Radiometrically Terrain Corrected) products
-are geocoded COGs in UTM with proper CRS, unlike raw GRD.
+OPERA L2 CSLC products are derived from Sentinel-1 IW SLC and provide
+coregistered, burst-level complex radar data needed for InSAR coherence
+computation.  We download all available dates for a single burst covering
+the Marshall Fire AOI.
+
+Data source: Alaska Satellite Facility (ASF) — requires EarthData credentials.
 """
 
 import logging
+import os
 from pathlib import Path
 
-import planetary_computer
-import pystac_client
-import rasterio
-from rasterio.warp import transform_bounds
-from rasterio.windows import from_bounds
+import asf_search as asf
 
-from config.settings import AOI, OBSERVATION_DATES
+from config.settings import AOI
 
 logger = logging.getLogger(__name__)
 
-PC_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
-COLLECTION = "sentinel-1-rtc"
-BANDS = ["vv", "vh"]
-OUT_DIR = Path("data/raw/sentinel1")
+BURST_ID = "T056-118973-IW1"
+OUT_DIR = Path("data/raw/sentinel1/cslc")
 
 
-def _date_range(year_month: str) -> str:
-    """Convert '2022-01' to a STAC datetime range covering that month."""
-    year, month = year_month.split("-")
-    month_int = int(month)
-    if month_int == 12:
-        end = f"{int(year) + 1}-01-01"
-    else:
-        end = f"{year}-{month_int + 1:02d}-01"
-    return f"{year_month}-01/{end}"
-
-
-def _download_band(asset_href: str, bbox: list[float], dest: Path) -> None:
-    """Read a single band from an RTC COG asset, windowed to the AOI bbox."""
-    with rasterio.open(asset_href) as src:
-        native_bounds = transform_bounds("EPSG:4326", src.crs, *bbox)
-        window = from_bounds(*native_bounds, transform=src.transform)
-        data = src.read(1, window=window)
-        profile = src.profile.copy()
-        profile.update(
-            width=window.width,
-            height=window.height,
-            transform=rasterio.windows.transform(window, src.transform),
-        )
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    with rasterio.open(dest, "w", **profile) as dst:
-        dst.write(data, 1)
-    logger.info("  saved %s (%d x %d)", dest.name, profile["width"], profile["height"])
+def _get_existing_dates(out_dir: Path) -> set[str]:
+    """Return set of YYYYMMDD strings already downloaded."""
+    dates = set()
+    for f in out_dir.glob(f"OPERA_L2_CSLC-S1_{BURST_ID}_*.h5"):
+        for part in f.stem.split("_"):
+            if part.startswith("20") and "T" in part and part.endswith("Z"):
+                dates.add(part[:8])
+                break
+    return dates
 
 
 def acquire_sentinel1() -> None:
-    """Download Sentinel-1 RTC VV/VH scenes for all observation dates."""
-    logger.info("acquire_sentinel1: fetching %d dates for AOI %s", len(OBSERVATION_DATES), AOI)
+    """Download all OPERA CSLC files for the project burst."""
+    logger.info("acquire_sentinel1: downloading CSLC for burst %s", BURST_ID)
 
-    catalog = pystac_client.Client.open(
-        PC_STAC_URL,
-        modifier=planetary_computer.sign_inplace,
+    username = os.environ.get("EARTHDATA_USERNAME")
+    password = os.environ.get("EARTHDATA_PASSWORD")
+    if not username or not password:
+        logger.error("Set EARTHDATA_USERNAME and EARTHDATA_PASSWORD in .env")
+        return
+
+    session = asf.ASFSession()
+    session.auth_with_creds(username, password)
+    logger.info("  authenticated with EarthData")
+
+    # Search for all CSLC on our burst
+    center_lon = (AOI[0] + AOI[2]) / 2
+    center_lat = (AOI[1] + AOI[3]) / 2
+    results = asf.search(
+        shortName="OPERA_L2_CSLC-S1_V1",
+        start="2021-06-01",
+        end="2025-12-31",
+        intersectsWith=f"POINT({center_lon} {center_lat})",
+        maxResults=500,
     )
 
-    for date_str in OBSERVATION_DATES:
-        dt_range = _date_range(date_str)
-        logger.info("  searching %s for %s", COLLECTION, dt_range)
-
-        search = catalog.search(
-            collections=[COLLECTION],
-            bbox=AOI,
-            datetime=dt_range,
-            sortby=[{"field": "datetime", "direction": "desc"}],
-            max_items=5,
-        )
-
-        items = list(search.items())
-        if not items:
-            logger.warning("  no scenes found for %s — skipping", date_str)
+    # Filter to our burst and deduplicate by date
+    seen: dict[str, asf.ASFProduct] = {}
+    for r in results:
+        fid = r.properties["fileID"]
+        if BURST_ID not in fid:
             continue
+        dt = r.properties["startTime"][:10]
+        if dt not in seen:
+            seen[dt] = r
 
-        # Pick the first scene (most recent in the month)
-        item = items[0]
-        scene_date = item.datetime.strftime("%Y-%m-%d")
-        logger.info("  selected scene %s from %s", item.id, scene_date)
+    all_dates = sorted(seen.keys())
+    logger.info("  found %d unique dates (%s → %s)", len(all_dates), all_dates[0], all_dates[-1])
 
-        for band in BANDS:
-            if band not in item.assets:
-                logger.warning("  band %s not in assets — skipping", band)
-                continue
-            href = item.assets[band].href
-            dest = OUT_DIR / date_str / f"{band}_{scene_date}.tif"
-            if dest.exists():
-                logger.info("  %s already exists — skipping", dest)
-                continue
-            _download_band(href, AOI, dest)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    existing = _get_existing_dates(OUT_DIR)
+    to_download = [(dt, seen[dt]) for dt in all_dates if dt.replace("-", "") not in existing]
+    logger.info("  already have: %d, to download: %d", len(all_dates) - len(to_download), len(to_download))
 
-    logger.info("acquire_sentinel1: done")
+    for i, (dt, result) in enumerate(to_download, 1):
+        fid = result.properties["fileID"]
+        logger.info("  [%d/%d] %s  %s", i, len(to_download), dt, fid)
+        try:
+            result.download(str(OUT_DIR), session=session)
+        except Exception as e:
+            logger.error("  FAILED: %s", e)
+
+    count = len(list(OUT_DIR.glob("*.h5")))
+    logger.info("acquire_sentinel1: done — %d HDF5 files in %s", count, OUT_DIR)

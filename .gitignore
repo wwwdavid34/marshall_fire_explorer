@@ -11,10 +11,26 @@ dist/
 # Data (large, pipeline-generated)
 data/
 
-# ML weights (stored in R2)
+# Frontend generated data (produced by pipeline output stage)
+frontend/public/data/
+
+# SAR / raster / geospatial (safety net if files land outside data/)
+*.h5
+*.hdf5
+*.nc
+*.tif
+*.tiff
+*.safe
+*.zip
+*.tar.gz
+
+# Large binary / ML artifacts
+*.parquet
+*.npy
+*.npz
 ml/models/*.pt
 ml/models/*.keras
-ml/models/*.h5
+ml/models/*.safetensors
 
 # DuckDB
 *.duckdb
@@ -23,6 +39,9 @@ ml/models/*.h5
 # MLflow
 mlflow/
 mlruns/
+
+# Jupyter
+.ipynb_checkpoints/
 
 # Node
 frontend/node_modules/

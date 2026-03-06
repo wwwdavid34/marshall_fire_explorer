@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from datetime import datetime
 
 import boto3
 from dotenv import load_dotenv
@@ -32,6 +33,10 @@ CONFIGS = {
 }
 
 AOI = [-105.23, 39.915, -105.12, 39.98]
+AOI_CSLC = [-105.23, 39.915, -105.12, 39.98]  # CSLC processing AOI (includes Costco)
+FIRE_DATE = datetime(2021, 12, 30)
+COSTCO_PARCEL = "157713021001"
+BURST_ID = "T056-118973-IW1"
 
 OBSERVATION_DATES = ["2021-11", "2022-01", "2022-06", "2023-06", "2024-06"]
 
