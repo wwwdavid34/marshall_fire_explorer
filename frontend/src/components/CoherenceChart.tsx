@@ -20,7 +20,7 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
   const { data, isLoading } = useQuery<CoherencePoint[]>({
     queryKey: ["timeseries", parcel.ParcelNo],
     queryFn: () =>
-      fetch(`/data/timeseries/${parcel.ParcelNo}.json`).then((r) => r.json()),
+      fetch(`${import.meta.env.BASE_URL}data/timeseries/${parcel.ParcelNo}.json`).then((r) => r.json()),
     staleTime: Infinity,
   });
 
@@ -74,9 +74,10 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               border: "1px solid #444",
               fontSize: 12,
             }}
-            labelFormatter={(v: number) => {
-              const pt = chartData.find((d) => d.months === v);
-              return pt ? `${pt.mid_date} (${v.toFixed(1)} mo)` : `${v.toFixed(1)} mo`;
+            labelFormatter={(v) => {
+              const n = Number(v);
+              const pt = chartData.find((d) => d.months === n);
+              return pt ? `${pt.mid_date} (${n.toFixed(1)} mo)` : `${n.toFixed(1)} mo`;
             }}
           />
           <ReferenceLine

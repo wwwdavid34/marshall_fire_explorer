@@ -10,11 +10,38 @@
   flex-shrink: 0;
 }
 
+.title-bar-left {
+  display: flex;
+  align-items: center;
+}
+
+.title-bar-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
 .title-bar-text {
   font-size: 15px;
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.3px;
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.github-link {
+  color: #999;
+  display: flex;
+  transition: color 0.2s;
+}
+
+.github-link:hover {
+  color: #fff;
 }
 
 .about-button {

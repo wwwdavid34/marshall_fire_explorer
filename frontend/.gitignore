@@ -9,7 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
-public/data/
+public/data/crops/
 dist-ssr
 *.local
 

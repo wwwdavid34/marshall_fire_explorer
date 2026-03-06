@@ -11,8 +11,9 @@ dist/
 # Data (large, pipeline-generated)
 data/
 
-# Frontend generated data (produced by pipeline output stage)
-frontend/public/data/
+# Frontend static data (parcels, perimeter, timeseries) — allow tracking
+!frontend/public/data/
+frontend/public/data/crops/
 
 # SAR / raster / geospatial (safety net if files land outside data/)
 *.h5

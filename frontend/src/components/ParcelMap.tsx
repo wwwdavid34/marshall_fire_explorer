@@ -18,13 +18,13 @@ export function ParcelMap() {
 
   const { data: parcels } = useQuery<FeatureCollection>({
     queryKey: ["parcels"],
-    queryFn: () => fetch("/data/parcels.geojson").then((r) => r.json()),
+    queryFn: () => fetch(`${import.meta.env.BASE_URL}data/parcels.geojson`).then((r) => r.json()),
     staleTime: Infinity,
   });
 
   const { data: perimeter } = useQuery<FeatureCollection>({
     queryKey: ["perimeter"],
-    queryFn: () => fetch("/data/perimeter.geojson").then((r) => r.json()),
+    queryFn: () => fetch(`${import.meta.env.BASE_URL}data/perimeter.geojson`).then((r) => r.json()),
     staleTime: Infinity,
   });
 
