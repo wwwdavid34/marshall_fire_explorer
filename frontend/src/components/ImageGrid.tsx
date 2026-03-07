@@ -26,6 +26,19 @@ function latToTileY(lat: number, z: number): number {
   );
 }
 
+/** Extract all coordinates from a Polygon or MultiPolygon geometry */
+function extractCoords(geometry: GeoJSON.Geometry): number[][] {
+  if (geometry.type === "Polygon") {
+    return (geometry as GeoJSON.Polygon).coordinates[0];
+  }
+  if (geometry.type === "MultiPolygon") {
+    return (geometry as GeoJSON.MultiPolygon).coordinates.flatMap(
+      (poly) => poly[0]
+    );
+  }
+  return [];
+}
+
 /** Convert longitude to fractional pixel X within tile grid */
 function lonToPixelX(lon: number, z: number): number {
   return ((lon + 180) / 360) * 2 ** z * TILE_SIZE;
@@ -137,9 +150,10 @@ function ParcelOverlay({ parcelNo }: { parcelNo: string }) {
     const feat = parcels.features.find(
       (f) => f.properties?.ParcelNo === parcelNo
     );
-    if (!feat || feat.geometry.type !== "Polygon") return null;
+    if (!feat) return null;
+    const coords = extractCoords(feat.geometry);
+    if (coords.length === 0) return null;
 
-    const coords = (feat.geometry as GeoJSON.Polygon).coordinates[0];
     const xs = coords.map((c) => c[0]);
     const ys = coords.map((c) => c[1]);
     const minx = Math.min(...xs) - CROP_BUFFER;
@@ -283,9 +297,10 @@ export function ImageGrid({ parcelNo }: { parcelNo: string }) {
     const feat = parcels.features.find(
       (f) => f.properties?.ParcelNo === parcelNo
     );
-    if (!feat || feat.geometry.type !== "Polygon") return null;
+    if (!feat) return null;
+    const coords = extractCoords(feat.geometry);
+    if (coords.length === 0) return null;
 
-    const coords = (feat.geometry as GeoJSON.Polygon).coordinates[0];
     const xs = coords.map((c) => c[0]);
     const ys = coords.map((c) => c[1]);
     return [
