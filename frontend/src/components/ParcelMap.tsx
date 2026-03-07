@@ -82,7 +82,7 @@ export function ParcelMap() {
       {perimeter && (
         <GeoJSON
           data={perimeter}
-          style={{ color: "#e41a1c", weight: 2, fillOpacity: 0, dashArray: "6 3" }}
+          style={{ color: "#4a90d9", weight: 2, fillOpacity: 0, dashArray: "6 3" }}
         />
       )}
       {filtered && (

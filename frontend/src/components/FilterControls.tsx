@@ -74,6 +74,16 @@ export function FilterControls() {
         ))}
       </div>
 
+      <div style={{ marginBottom: 8 }}>
+        <strong>Legend</strong>
+        <div style={{ display: "flex", alignItems: "center", margin: "4px 0" }}>
+          <svg width={24} height={12} style={{ marginRight: 6, flexShrink: 0 }}>
+            <line x1={0} y1={6} x2={24} y2={6} stroke="#4a90d9" strokeWidth={2} strokeDasharray="6 3" />
+          </svg>
+          <span style={{ fontSize: 13 }}>Fire perimeter</span>
+        </div>
+      </div>
+
       <div style={{ color: "#888", fontSize: 12 }}>
         Showing {visibleCount} parcels
       </div>
