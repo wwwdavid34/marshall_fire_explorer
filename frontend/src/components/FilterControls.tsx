@@ -12,7 +12,7 @@ const CLASS_COLORS: Record<string, string> = {
 };
 
 export function FilterControls() {
-  const { damageClasses, toggleDamageClass, recoveryFilter, setRecoveryFilter } =
+  const { damageClasses, toggleDamageClass, recoveryFilter, setRecoveryFilter, baseLayer, setBaseLayer } =
     useStore();
 
   const { data: parcels } = useQuery<FeatureCollection>({
@@ -82,6 +82,26 @@ export function FilterControls() {
           </svg>
           <span style={{ fontSize: 13 }}>Fire perimeter</span>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <strong>Base Map</strong>
+        {([
+          ["satellite", "Satellite"],
+          ["pre-fire", "Pre-fire"],
+          ["post-fire", "Post-fire"],
+          ["aug-2023", "Aug 2023"],
+        ] as const).map(([key, label]) => (
+          <label key={key} style={{ display: "block", margin: "4px 0", cursor: "pointer" }}>
+            <input
+              type="radio"
+              name="baseLayer"
+              checked={baseLayer === key}
+              onChange={() => setBaseLayer(key)}
+            />{" "}
+            {label}
+          </label>
+        ))}
       </div>
 
       <div style={{ color: "#888", fontSize: 12 }}>

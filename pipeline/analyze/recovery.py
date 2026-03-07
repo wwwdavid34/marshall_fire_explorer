@@ -2,7 +2,7 @@
 
 Methodology:
   1. Compute pre-fire baseline: 75th percentile of pre-fire coherence
-  2. Set recovery threshold: 90% of baseline
+  2. Set recovery threshold: 70% of baseline
   3. Apply Wiener filter to smooth post-fire coherence series
   4. Per-parcel minimum delay = max(vertex_months from curvature, 6 months)
   5. Detect first sustained crossing: 5 consecutive pairs above threshold
@@ -31,7 +31,7 @@ RESULTS_DIR = Path("data/results")
 
 # Detection parameters
 BASELINE_QUANTILE = 0.75     # pre-fire baseline percentile
-THRESHOLD_FRACTION = 0.90    # fraction of baseline for recovery
+THRESHOLD_FRACTION = 0.70    # fraction of baseline for recovery
 SUSTAIN_PAIRS = 5            # consecutive pairs above threshold (~60 days)
 MIN_DELAY_MONTHS = 6         # minimum months before recovery can be declared
 

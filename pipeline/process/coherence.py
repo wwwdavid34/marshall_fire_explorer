@@ -8,7 +8,7 @@ Methodology:
   5. Output: coherence_timeseries.parquet (long format)
 
 Schema: ParcelNo, pair_idx, date1, date2, mid_date, months_post_fire,
-        raw_coh, costco_coh, norm_coh, damage_class
+        raw_coh, costco_coh, norm_coh, damage_class, building_ratio, used_footprint
 """
 
 import logging
@@ -25,6 +25,8 @@ from rasterstats import zonal_stats
 from scipy.ndimage import uniform_filter
 from shapely.geometry import box as shapely_box
 
+from shapely.validation import make_valid
+
 from config.settings import AOI_CSLC, BURST_ID, COSTCO_PARCEL, FIRE_DATE
 
 logger = logging.getLogger(__name__)
@@ -32,9 +34,12 @@ logger = logging.getLogger(__name__)
 CSLC_DIR = Path("data/raw/sentinel1/cslc")
 RESULTS_DIR = Path("data/results")
 DAMAGE_PARCELS = Path("data/raw/ground_truth/marshall_fire_damage_parcels.geojson")
+BUILDING_FOOTPRINTS = Path("data/raw/ms_building_footprints_aoi.geojson")
 
 COHERENCE_WINDOW = 5
 MIN_COH_PIXELS = 3
+FOOTPRINT_RATIO_THRESHOLD = 0.8
+MIN_BUILDING_AREA_M2 = 200  # footprints smaller than this fall back to parcel geometry
 
 
 def _parse_date(path: Path) -> datetime:
@@ -94,6 +99,74 @@ def _compute_coherence(slc1: np.ndarray, slc2: np.ndarray, win: int = COHERENCE_
     valid = np.isfinite(slc1) & np.isfinite(slc2)
     coh[~valid] = np.nan
     return coh.astype(np.float32)
+
+
+def _load_building_geometries(
+    parcels_utm: gpd.GeoDataFrame,
+) -> tuple[gpd.GeoSeries, pd.Series, pd.Series]:
+    """Select building footprint or parcel geometry per parcel for zonal stats.
+
+    For parcels where the building covers < FOOTPRINT_RATIO_THRESHOLD of the
+    parcel area, use the building footprint geometry instead. This avoids
+    diluting coherence with yards/driveways on large lots.
+
+    Returns (zonal_geometries, building_ratio, used_footprint) aligned to
+    parcels_utm index.
+    """
+    buildings = gpd.read_file(BUILDING_FOOTPRINTS).to_crs(epsg=32613)
+    buildings["geometry"] = buildings["geometry"].apply(make_valid)
+    buildings["building_area_m2"] = buildings.geometry.area
+
+    # Spatial join using building centroids
+    building_centroids = buildings.copy()
+    building_centroids["geometry"] = buildings.geometry.centroid
+    joined = gpd.sjoin(
+        building_centroids,
+        parcels_utm[["ParcelNo", "geometry"]],
+        how="inner",
+        predicate="within",
+    )
+
+    # Keep largest building per parcel
+    joined["building_area_m2"] = buildings.loc[joined.index, "building_area_m2"].values
+    best = joined.sort_values("building_area_m2", ascending=False).drop_duplicates(
+        "ParcelNo", keep="first"
+    )
+
+    # Map ParcelNo → building footprint geometry (from original buildings, not centroids)
+    best_geom = buildings.loc[best.index, "geometry"]
+    best = best.copy()
+    best["building_geom"] = best_geom.values
+
+    # Merge onto parcels
+    ratio_map = best.set_index("ParcelNo")["building_area_m2"]
+    parcels_utm["_parcel_area"] = parcels_utm.geometry.area
+    building_ratio = (
+        parcels_utm["ParcelNo"].map(ratio_map) / parcels_utm["_parcel_area"]
+    )
+
+    # Build geometry + area lookups
+    geom_map = best.set_index("ParcelNo")["building_geom"]
+    area_map = best.set_index("ParcelNo")["building_area_m2"]
+
+    use_footprint = building_ratio < FOOTPRINT_RATIO_THRESHOLD
+    use_footprint = use_footprint.fillna(False)
+    # Fall back to parcel geometry if building footprint is too small for zonal stats
+    for idx in use_footprint.index:
+        if use_footprint.at[idx]:
+            parcel_no = parcels_utm.at[idx, "ParcelNo"]
+            if parcel_no in area_map.index and area_map[parcel_no] < MIN_BUILDING_AREA_M2:
+                use_footprint.at[idx] = False
+
+    zonal_geoms = parcels_utm.geometry.copy()
+    for idx in zonal_geoms.index:
+        parcel_no = parcels_utm.at[idx, "ParcelNo"]
+        if use_footprint.at[idx] and parcel_no in geom_map.index:
+            zonal_geoms.at[idx] = geom_map[parcel_no]
+
+    parcels_utm.drop(columns="_parcel_area", inplace=True)
+
+    return zonal_geoms, building_ratio, use_footprint
 
 
 def process_coherence() -> None:
@@ -157,6 +230,18 @@ def process_coherence() -> None:
     parcels_utm = parcels_utm[in_cslc].reset_index(drop=True)
     logger.info("  %d parcels within CSLC coverage", len(parcels_utm))
 
+    # Load building footprints for geometry selection
+    if BUILDING_FOOTPRINTS.exists():
+        zonal_geoms, building_ratio, used_footprint = _load_building_geometries(parcels_utm)
+        n_fp = int(used_footprint.sum())
+        n_parcel = len(parcels_utm) - n_fp
+        logger.info("  %d parcels using building footprint, %d using full parcel", n_fp, n_parcel)
+    else:
+        logger.warning("  building footprints not found at %s — using parcel geometry for all", BUILDING_FOOTPRINTS)
+        zonal_geoms = parcels_utm.geometry
+        building_ratio = pd.Series(np.nan, index=parcels_utm.index)
+        used_footprint = pd.Series(False, index=parcels_utm.index)
+
     # Load Costco parcel separately in UTM
     costco_gdf = gdf_all[gdf_all["ParcelNo"] == COSTCO_PARCEL].to_crs(epsg=32613)
 
@@ -172,8 +257,8 @@ def process_coherence() -> None:
                          stats=["mean"], nodata=np.nan)
         costco_coh.append(cs[0]["mean"] if cs[0]["mean"] else np.nan)
 
-        # Per-parcel zonal stats
-        stats = zonal_stats(parcels_utm.geometry, coh_map, affine=coh_transform,
+        # Per-parcel zonal stats (using building footprint where appropriate)
+        stats = zonal_stats(zonal_geoms, coh_map, affine=coh_transform,
                             stats=["mean", "count"], nodata=np.nan)
         for j, s in enumerate(stats):
             mean_val = s["mean"]
@@ -196,6 +281,8 @@ def process_coherence() -> None:
     records = []
     parcel_nos = parcels_utm["ParcelNo"].values
     parcel_conditions = parcels_utm["Condition"].values
+    building_ratios = building_ratio.values
+    used_footprints = used_footprint.values
 
     for i in range(n_pairs):
         d1, d2 = pair_dates[i]
@@ -216,6 +303,8 @@ def process_coherence() -> None:
                 "costco_coh": float(costco_val) if costco_val and np.isfinite(costco_val) else np.nan,
                 "norm_coh": float(norm) if np.isfinite(norm) else np.nan,
                 "damage_class": parcel_conditions[j],
+                "building_ratio": float(building_ratios[j]) if np.isfinite(building_ratios[j]) else np.nan,
+                "used_footprint": bool(used_footprints[j]),
             })
 
     ts_df = pd.DataFrame(records)

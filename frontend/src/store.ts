@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ParcelProperties } from "./types";
 
 type RecoveryFilter = "all" | "recovered" | "not-recovered";
+type BaseLayer = "satellite" | "pre-fire" | "post-fire" | "aug-2023";
 
 interface AppState {
   selectedParcel: ParcelProperties | null;
@@ -10,6 +11,8 @@ interface AppState {
   toggleDamageClass: (cls: string) => void;
   recoveryFilter: RecoveryFilter;
   setRecoveryFilter: (filter: RecoveryFilter) => void;
+  baseLayer: BaseLayer;
+  setBaseLayer: (layer: BaseLayer) => void;
   showAbout: boolean;
   setShowAbout: (show: boolean) => void;
 }
@@ -27,6 +30,8 @@ export const useStore = create<AppState>((set) => ({
     }),
   recoveryFilter: "all",
   setRecoveryFilter: (filter) => set({ recoveryFilter: filter }),
+  baseLayer: "satellite",
+  setBaseLayer: (layer) => set({ baseLayer: layer }),
   showAbout: false,
   setShowAbout: (show) => set({ showAbout: show }),
 }));

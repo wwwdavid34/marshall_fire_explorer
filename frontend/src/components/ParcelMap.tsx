@@ -6,6 +6,31 @@ import type { Feature, FeatureCollection } from "geojson";
 import type { Layer, PathOptions } from "leaflet";
 import { useMemo } from "react";
 
+const WAYBACK_BASE = "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile";
+
+const BASE_LAYERS: Record<string, { url: string; attribution: string; maxZoom: number }> = {
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "ESRI",
+    maxZoom: 19,
+  },
+  "pre-fire": {
+    url: `${WAYBACK_BASE}/26120/{z}/{y}/{x}`,
+    attribution: "ESRI Wayback — Pre-fire",
+    maxZoom: 19,
+  },
+  "post-fire": {
+    url: `${WAYBACK_BASE}/7110/{z}/{y}/{x}`,
+    attribution: "ESRI Wayback — Post-fire",
+    maxZoom: 19,
+  },
+  "aug-2023": {
+    url: `${WAYBACK_BASE}/17632/{z}/{y}/{x}`,
+    attribution: "ESRI Wayback — Aug 2023",
+    maxZoom: 19,
+  },
+};
+
 const CONDITION_COLORS: Record<string, string> = {
   Destroyed: "#e41a1c",
   Damaged: "#ff7f00",
@@ -13,7 +38,7 @@ const CONDITION_COLORS: Record<string, string> = {
 };
 
 export function ParcelMap() {
-  const { damageClasses, recoveryFilter, selectedParcel, setSelectedParcel } =
+  const { damageClasses, recoveryFilter, baseLayer, selectedParcel, setSelectedParcel } =
     useStore();
 
   const { data: parcels } = useQuery<FeatureCollection>({
@@ -75,9 +100,10 @@ export function ParcelMap() {
       className="map-container"
     >
       <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-        attribution="ESRI"
-        maxZoom={19}
+        key={baseLayer}
+        url={BASE_LAYERS[baseLayer].url}
+        attribution={BASE_LAYERS[baseLayer].attribution}
+        maxZoom={BASE_LAYERS[baseLayer].maxZoom}
       />
       {perimeter && (
         <GeoJSON

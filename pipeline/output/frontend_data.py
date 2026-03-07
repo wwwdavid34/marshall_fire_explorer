@@ -62,6 +62,17 @@ def _prep_parcels() -> None:
         labeled["smile_valid"] = None
         logger.warning("  parcel_curvature.parquet not found — no curvature data")
 
+    # Join building footprint ratio from coherence timeseries
+    coh_path = RESULTS / "coherence_timeseries.parquet"
+    if coh_path.exists():
+        coh = pd.read_parquet(coh_path, columns=["ParcelNo", "building_ratio", "used_footprint"])
+        fp_info = coh.drop_duplicates("ParcelNo")[["ParcelNo", "building_ratio", "used_footprint"]]
+        labeled = labeled.merge(fp_info, on="ParcelNo", how="left")
+    else:
+        labeled["building_ratio"] = None
+        labeled["used_footprint"] = None
+        logger.warning("  coherence_timeseries.parquet not found — no footprint data")
+
     # Serialize
     labeled["recovery_date"] = labeled["recovery_date"].astype(str).replace("NaT", "")
     labeled["smile_valid"] = labeled["smile_valid"].map(
@@ -69,7 +80,8 @@ def _prep_parcels() -> None:
     )
 
     keep = ["ParcelNo", "Condition", "recovery_date", "recovery_months_post_fire",
-            "smile_curvature", "smile_valid", "StrNum", "Street", "geometry"]
+            "smile_curvature", "smile_valid", "building_ratio", "used_footprint",
+            "StrNum", "Street", "geometry"]
     labeled = labeled[keep]
     labeled["geometry"] = labeled["geometry"].simplify(tolerance=0.00001)
 
