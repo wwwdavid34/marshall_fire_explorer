@@ -6,6 +6,8 @@ export interface ParcelProperties {
   recovery_llm: number | null;
   smile_curvature: number | null;
   smile_valid: boolean | null;
+  building_ratio: number | null;
+  used_footprint: boolean;
   StrNum: string | null;
   Street: string | null;
 }

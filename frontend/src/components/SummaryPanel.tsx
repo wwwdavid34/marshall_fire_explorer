@@ -65,7 +65,10 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
   const stats = useMemo(() => {
     if (!geojson) return null;
 
-    const parcels = geojson.features.map((f) => f.properties);
+    // Exclude parcels without pre-incident building footprints (vacant lots, open land)
+    const parcels = geojson.features
+      .map((f) => f.properties)
+      .filter((p) => p.used_footprint);
     const total = parcels.length;
 
     const destroyed = parcels.filter((p) => p.Condition === "Destroyed");

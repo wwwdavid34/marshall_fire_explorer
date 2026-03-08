@@ -13,9 +13,9 @@ The pipeline processes 127 Sentinel-1 CSLC acquisitions into per-parcel coherenc
 
 ## Key Findings
 
-- **1,950 parcels** assessed: 1,111 Destroyed, 369 Damaged, 470 Unaffected
-- **Algorithmic recovery:** 484 of 1,111 destroyed parcels (44%) detected via sustained coherence threshold crossing, with smile curvature validation confirming genuine destruction patterns
-- **LLM recovery:** 878 of 1,111 destroyed parcels (79%) identified by Claude Sonnet reviewing smoothed coherence time series — capturing cases the threshold-based algorithm misses
+- **1,821 parcels** with building footprints assessed: 1,104 Destroyed, 357 Damaged, 360 Unaffected (129 parcels without pre-incident structures excluded)
+- **Algorithmic recovery:** 485 of 1,104 destroyed parcels (44%) detected via sustained coherence threshold crossing, with smile curvature validation confirming genuine destruction patterns
+- **LLM recovery:** 893 of 1,104 destroyed parcels (81%) identified by Claude Sonnet reviewing smoothed coherence time series — capturing cases the threshold-based algorithm misses
 - **Median recovery time:** ~27 months (algorithmic), ~23 months (LLM) post-fire
 - Smile curvature validation (bootstrap CI lower bound >= 2.0) filters out parcels without genuine structural destruction, reducing false positives from vegetation and open land
 - The LLM approach detects recovery inflection points earlier than the conservative 5-consecutive-pair threshold algorithm, explaining the higher detection rate and shorter median time
