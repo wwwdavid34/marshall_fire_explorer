@@ -186,12 +186,12 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
         >
           <StatCard
             label="Algorithmic Recoveries"
-            value={stats.algoRecovered}
+            value={stats.algoRecovered.toLocaleString()}
             sub={`${stats.algoPercent}% of destroyed`}
           />
           <StatCard
             label="LLM Detections"
-            value={stats.llmRecovered}
+            value={stats.llmRecovered.toLocaleString()}
             sub={`${stats.llmPercent}% of destroyed`}
           />
           <StatCard
