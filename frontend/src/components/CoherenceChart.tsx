@@ -40,6 +40,7 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
 
   const isValid = String(parcel.smile_valid) === "True" || parcel.smile_valid === true;
   const recoveryMonths = parcel.recovery_months_post_fire;
+  const llmMonths = parcel.recovery_llm;
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -101,6 +102,19 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
                 fill: isValid ? "#4daf4a" : "#4daf4a55",
                 fontSize: 10,
                 position: "top",
+              }}
+            />
+          )}
+          {llmMonths != null && (
+            <ReferenceLine
+              x={llmMonths}
+              stroke="#c084fc"
+              strokeDasharray="4 2"
+              label={{
+                value: "LLM",
+                fill: "#c084fc",
+                fontSize: 10,
+                position: "insideTopRight",
               }}
             />
           )}

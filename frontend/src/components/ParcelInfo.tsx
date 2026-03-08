@@ -17,6 +17,9 @@ export function ParcelInfo({ parcel }: { parcel: ParcelProperties }) {
   const recoveryStr = parcel.recovery_date
     ? `${parcel.recovery_date.slice(0, 7)} (${parcel.recovery_months_post_fire?.toFixed(0)} mo)`
     : "Not recovered";
+  const llmStr = parcel.recovery_llm != null
+    ? `${parcel.recovery_llm.toFixed(0)} mo`
+    : "Not detected";
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -38,6 +41,9 @@ export function ParcelInfo({ parcel }: { parcel: ParcelProperties }) {
       </div>
       <div style={{ fontSize: 13, color: "#aaa" }}>
         Recovery: {recoveryStr}
+      </div>
+      <div style={{ fontSize: 13, color: "#c084fc" }}>
+        LLM estimate: {llmStr}
       </div>
       {parcel.smile_curvature != null && (
         <CurvatureRow parcel={parcel} />

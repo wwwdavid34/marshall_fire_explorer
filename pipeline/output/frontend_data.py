@@ -36,30 +36,36 @@ def _prep_parcels() -> None:
     gdf = gpd.read_file(GROUND_TRUTH / "marshall_fire_damage_parcels.geojson")
     labeled = gdf[gdf["Condition"].isin(["Destroyed", "Damaged", "Unaffected"])].copy()
 
-    # Join recovery detection
+    # Join recovery detection (now includes exponential model fields)
     rec_path = RESULTS / "recovery_detection.parquet"
     if rec_path.exists():
         rec = pd.read_parquet(rec_path)
-        labeled = labeled.merge(
-            rec[["ParcelNo", "recovery_date", "recovery_months_post_fire"]],
-            on="ParcelNo", how="left",
-        )
+        rec_cols = ["ParcelNo", "recovery_date", "recovery_months_post_fire",
+                    "recovery_tau", "recovery_cmin", "recovery_r2", "recovery_llm"]
+        # Only include columns that exist (backwards compatible)
+        rec_cols = [c for c in rec_cols if c in rec.columns]
+        labeled = labeled.merge(rec[rec_cols], on="ParcelNo", how="left")
     else:
         labeled["recovery_date"] = None
         labeled["recovery_months_post_fire"] = None
+        labeled["recovery_tau"] = None
+        labeled["recovery_cmin"] = None
+        labeled["recovery_r2"] = None
         logger.warning("  recovery_detection.parquet not found — no recovery data")
 
-    # Join curvature
+    # Join curvature (now includes bootstrap CI bounds)
     curv_path = RESULTS / "parcel_curvature.parquet"
     if curv_path.exists():
         curv = pd.read_parquet(curv_path)
-        labeled = labeled.merge(
-            curv[["ParcelNo", "smile_curvature", "smile_valid"]],
-            on="ParcelNo", how="left",
-        )
+        curv_cols = ["ParcelNo", "smile_curvature", "smile_valid",
+                     "curvature_ci_lower", "curvature_ci_upper"]
+        curv_cols = [c for c in curv_cols if c in curv.columns]
+        labeled = labeled.merge(curv[curv_cols], on="ParcelNo", how="left")
     else:
         labeled["smile_curvature"] = None
         labeled["smile_valid"] = None
+        labeled["curvature_ci_lower"] = None
+        labeled["curvature_ci_upper"] = None
         logger.warning("  parcel_curvature.parquet not found — no curvature data")
 
     # Join building footprint ratio from coherence timeseries
@@ -80,8 +86,12 @@ def _prep_parcels() -> None:
     )
 
     keep = ["ParcelNo", "Condition", "recovery_date", "recovery_months_post_fire",
-            "smile_curvature", "smile_valid", "building_ratio", "used_footprint",
+            "recovery_tau", "recovery_cmin", "recovery_r2", "recovery_llm",
+            "smile_curvature", "smile_valid", "curvature_ci_lower", "curvature_ci_upper",
+            "building_ratio", "used_footprint",
             "StrNum", "Street", "geometry"]
+    # Only keep columns that actually exist (backwards compatible)
+    keep = [c for c in keep if c in labeled.columns]
     labeled = labeled[keep]
     labeled["geometry"] = labeled["geometry"].simplify(tolerance=0.00001)
 

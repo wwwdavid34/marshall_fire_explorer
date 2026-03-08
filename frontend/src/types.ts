@@ -3,6 +3,7 @@ export interface ParcelProperties {
   Condition: "Destroyed" | "Damaged" | "Unaffected";
   recovery_date: string | null;
   recovery_months_post_fire: number | null;
+  recovery_llm: number | null;
   smile_curvature: number | null;
   smile_valid: boolean | null;
   StrNum: string | null;

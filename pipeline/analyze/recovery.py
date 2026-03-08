@@ -12,7 +12,8 @@ Only runs on Destroyed parcels (damage_class from coherence timeseries).
 Outputs:
   - data/results/recovery_detection.parquet
     Columns: ParcelNo, damage_class, pre_baseline, recovery_date,
-             recovery_months_post_fire, smile_curvature, vertex_months, smile_valid
+             recovery_months_post_fire, smile_curvature, vertex_months, smile_valid,
+             recovery_tau, recovery_cmin, recovery_r2
 """
 
 import logging
@@ -21,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 
 from config.settings import FIRE_DATE
 from pipeline.analyze.curvature import smooth_series
@@ -31,7 +33,8 @@ RESULTS_DIR = Path("data/results")
 
 # Detection parameters
 BASELINE_QUANTILE = 0.75     # pre-fire baseline percentile
-THRESHOLD_FRACTION = 0.70    # fraction of baseline for recovery
+THRESHOLD_FRACTION = 0.90    # fraction of baseline for recovery
+THRESHOLD_CAP = 1.05         # max absolute threshold (high-baseline parcels can't exceed this)
 SUSTAIN_PAIRS = 5            # consecutive pairs above threshold (~60 days)
 MIN_DELAY_MONTHS = 6         # minimum months before recovery can be declared
 
@@ -50,6 +53,54 @@ def find_sustained_crossing(
         else:
             run = 0
     return None
+
+
+def fit_recovery_model(
+    post_months: np.ndarray, smoothed: np.ndarray, baseline: float,
+) -> dict:
+    """Fit exponential relaxation model to post-fire smoothed coherence.
+
+    Model: coh(t) = c_min + (baseline - c_min) * [1 - exp(-(t - t0) / tau)]
+    where t0 = first post-fire month.
+
+    Returns dict with recovery_tau, recovery_cmin, recovery_r2.
+    """
+    valid = np.isfinite(smoothed) & np.isfinite(post_months)
+    if valid.sum() < 10:
+        return {"recovery_tau": np.nan, "recovery_cmin": np.nan, "recovery_r2": np.nan}
+
+    m = post_months[valid]
+    s = smoothed[valid]
+    t0 = m[0]
+
+    def recovery_curve(t, c_min, tau):
+        return c_min + (baseline - c_min) * (1 - np.exp(-(t - t0) / tau))
+
+    try:
+        popt, _ = curve_fit(
+            recovery_curve, m, s,
+            p0=[s.min(), 12.0],
+            bounds=([0, 1], [baseline, 60]),
+            maxfev=500,
+        )
+        c_min, tau = popt
+
+        # R² goodness of fit
+        predicted = recovery_curve(m, c_min, tau)
+        ss_res = np.sum((s - predicted) ** 2)
+        ss_tot = np.sum((s - np.mean(s)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+
+        if r2 < 0.3:
+            tau = np.nan
+
+        return {
+            "recovery_tau": round(float(tau), 2) if np.isfinite(tau) else np.nan,
+            "recovery_cmin": round(float(c_min), 4),
+            "recovery_r2": round(float(r2), 3),
+        }
+    except (RuntimeError, ValueError):
+        return {"recovery_tau": np.nan, "recovery_cmin": np.nan, "recovery_r2": np.nan}
 
 
 def run_recovery_detection() -> pd.DataFrame:
@@ -101,7 +152,11 @@ def run_recovery_detection() -> pd.DataFrame:
     # Build pair mid-dates for recovery date lookup
     pair_months = sample.sort_values("pair_idx")["months_post_fire"].values
 
+    # Check if raw coherence column is available for weighting
+    has_raw_coh = "raw_coh" in ts_destroyed.columns
+
     records = []
+    n_good_fits = 0
     for parcel_no, grp in ts_destroyed.groupby("ParcelNo"):
         grp = grp.sort_values("pair_idx")
         series = grp["norm_coh"].values
@@ -112,14 +167,16 @@ def run_recovery_detection() -> pd.DataFrame:
         if len(pre_vals) < 3:
             continue
         baseline = float(np.percentile(pre_vals, BASELINE_QUANTILE * 100))
-        threshold = baseline * THRESHOLD_FRACTION
+        threshold = min(baseline * THRESHOLD_FRACTION, THRESHOLD_CAP)
 
-        # Post-fire Wiener smoothing
+        # Post-fire Wiener smoothing (with MAD rejection + optional weighting)
         post_series = series[fire_pair_idx:]
-        smoothed = smooth_series(post_series)
+        raw_coh = grp["raw_coh"].values[fire_pair_idx:] if has_raw_coh else None
+        smoothed, _ = smooth_series(post_series, raw_coh=raw_coh)
 
-        # Per-parcel min delay from curvature vertex
+        # Per-parcel min delay from curvature vertex (smile_valid gate)
         curv_info = curv_lookup.get(parcel_no, {})
+        smile_valid = curv_info.get("smile_valid", False)
         vertex_months = curv_info.get("vertex_months", MIN_DELAY_MONTHS)
         if not np.isfinite(vertex_months) or vertex_months < MIN_DELAY_MONTHS:
             vertex_months = MIN_DELAY_MONTHS
@@ -127,13 +184,19 @@ def run_recovery_detection() -> pd.DataFrame:
         post_months = grp["months_post_fire"].values[fire_pair_idx:]
         skip_first = int(np.searchsorted(post_months, vertex_months))
 
-        crossing_idx = find_sustained_crossing(smoothed, threshold, SUSTAIN_PAIRS, skip_first)
-
+        # Only detect recovery for parcels with confirmed destruction (smile_valid)
         recovery_date = None
         recovery_months = None
-        if crossing_idx is not None:
-            recovery_months = float(post_months[crossing_idx])
-            recovery_date = FIRE_DATE + timedelta(days=recovery_months * 30.44)
+        if smile_valid:
+            crossing_idx = find_sustained_crossing(smoothed, threshold, SUSTAIN_PAIRS, skip_first)
+            if crossing_idx is not None:
+                recovery_months = float(post_months[crossing_idx])
+                recovery_date = FIRE_DATE + timedelta(days=recovery_months * 30.44)
+
+        # Exponential relaxation model fit
+        model_info = fit_recovery_model(post_months, smoothed, baseline)
+        if np.isfinite(model_info.get("recovery_tau", np.nan)):
+            n_good_fits += 1
 
         records.append({
             "ParcelNo": parcel_no,
@@ -144,6 +207,7 @@ def run_recovery_detection() -> pd.DataFrame:
             "smile_curvature": curv_info.get("smile_curvature", np.nan),
             "vertex_months": curv_info.get("vertex_months", np.nan),
             "smile_valid": curv_info.get("smile_valid", False),
+            **model_info,
         })
 
     df = pd.DataFrame(records)
@@ -154,6 +218,8 @@ def run_recovery_detection() -> pd.DataFrame:
     n_recovered = df["recovery_date"].notna().sum()
     n_valid = df["smile_valid"].sum()
     logger.info("  %d parcels: %d recovered, %d valid smile", len(df), n_recovered, n_valid)
+    logger.info("  exponential model: %d/%d parcels with good fit (R² ≥ 0.3)",
+                n_good_fits, len(df))
     logger.info("  saved %s", out_path)
 
     return df
