@@ -112,15 +112,11 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               x={llmMonths}
               stroke="#c084fc"
               strokeDasharray="4 2"
-              label={({ viewBox }) => {
-                const x = (viewBox as { x?: number }).x ?? 0;
-                return (
-                  <text x={x + 4} y={28} fill="#c084fc" fontSize={10}>
-                    <tspan>LLM </tspan>
-                    <tspan style={{ cursor: "help" }}>&#9432;</tspan>
-                    <title>AI-estimated recovery date from coherence time series review</title>
-                  </text>
-                );
+              label={{
+                value: "LLM?",
+                fill: "#c084fc",
+                fontSize: 10,
+                position: "top",
               }}
             />
           )}
