@@ -54,10 +54,25 @@ export function AboutPanel({ onClose }: { onClose: () => void }) {
             weather and atmospheric effects.
           </p>
           <p>
-            Recovery is detected when the smoothed coherence signal crosses back
-            above 90% of its pre-fire baseline and stays there for at least 60
-            days. The green dashed line on the chart marks this detected recovery
-            date.
+            Before smoothing, anomalous acquisitions (weather events, orbit
+            errors) are flagged and removed using Median Absolute Deviation
+            (MAD) outlier rejection. Observations are then weighted by
+            coherence-derived variance (Touzi et al. 1999) — low-coherence
+            measurements get downweighted — before Wiener filtering.
+          </p>
+          <p>
+            <strong>Algorithmic detection</strong> (green line): Recovery is
+            detected when the smoothed coherence crosses back above 90% of its
+            pre-fire baseline (capped at 1.05 for high-baseline parcels) and
+            stays there for at least 60 days. Only parcels with validated
+            destruction patterns are eligible.
+          </p>
+          <p>
+            <strong>LLM detection</strong> (purple line): An AI model
+            independently reviews each parcel's smoothed coherence time series
+            and identifies the inflection point where sustained recovery begins.
+            This captures cases the threshold-based algorithm misses and
+            provides a human-interpretable recovery estimate.
           </p>
         </section>
 
@@ -71,10 +86,10 @@ export function AboutPanel({ onClose }: { onClose: () => void }) {
             characteristic U-shaped "smile" pattern (dip then recovery).
           </p>
           <p>
-            Parcels with strong curvature (above threshold) show the recovery
-            line in solid green. Parcels with weak or negative curvature show a
-            dimmed "Recovery?" line, indicating the detection may not reflect
-            actual structural rebuilding.
+            A 200-iteration bootstrap provides a 95% confidence interval on the
+            curvature estimate. Parcels where the entire CI exceeds the
+            threshold show the recovery line in solid green. Parcels with weak
+            or uncertain curvature show a dimmed "Recovery?" line.
           </p>
         </section>
 

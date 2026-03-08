@@ -17,9 +17,13 @@ export function ParcelInfo({ parcel }: { parcel: ParcelProperties }) {
   const recoveryStr = parcel.recovery_date
     ? `${parcel.recovery_date.slice(0, 7)} (${parcel.recovery_months_post_fire?.toFixed(0)} mo)`
     : "Not recovered";
-  const llmStr = parcel.recovery_llm != null
-    ? `${parcel.recovery_llm.toFixed(0)} mo`
-    : "Not detected";
+  const llmStr = (() => {
+    if (parcel.recovery_llm == null) return "Not detected";
+    const fireDate = new Date(2021, 11, 30); // Dec 30, 2021
+    const llmDate = new Date(fireDate.getTime() + parcel.recovery_llm * 30.44 * 86400000);
+    const dateStr = `${llmDate.getFullYear()}-${String(llmDate.getMonth() + 1).padStart(2, "0")}`;
+    return `${dateStr} (${parcel.recovery_llm.toFixed(0)} mo)`;
+  })();
 
   return (
     <div style={{ marginBottom: 16 }}>

@@ -19,9 +19,12 @@ Interferometric Synthetic Aperture Radar (InSAR) coherence measures how similar 
 
 1. **CSLC pairs:** 126 consecutive 12-day Sentinel-1 pairs (Sep 2021 – Dec 2025)
 2. **Costco normalization:** Each pair's coherence is divided by the Costco parking lot reference target to remove atmospheric and seasonal effects
-3. **Wiener filtering:** Noise-adaptive smoothing (window=11, ~132 days) that preserves sharp rebuild transitions better than rolling median
-4. **Smile curvature:** Degree-2 polynomial fit on post-fire smoothed coherence; curvature ≥ 2.0 validates genuine destruction (U-shaped dip-then-recovery pattern)
-5. **Recovery detection:** Sustained threshold crossing (90% of pre-fire 75th percentile, 5 consecutive pairs) with vertex-based minimum delay
+3. **MAD outlier rejection:** Median Absolute Deviation flags anomalous acquisitions (weather, orbit errors) before smoothing, replacing them with NaN for the Wiener filter to interpolate through
+4. **Coherence-weighted Wiener filtering:** Noise-adaptive smoothing (window=11, ~132 days) with observation weights derived from coherence-to-variance (Touzi et al. 1999): low-coherence observations are downweighted
+5. **Smile curvature with bootstrap CI:** Degree-2 polynomial fit on post-fire smoothed coherence; 200-iteration bootstrap provides 95% confidence interval on curvature. `smile_valid` requires the entire CI lower bound ≥ 2.0
+6. **Recovery detection:** Sustained threshold crossing (90% of pre-fire 75th percentile, capped at 1.05 for high-baseline parcels, 5 consecutive pairs) with vertex-based minimum delay. Only parcels with `smile_valid = true` are eligible
+7. **Exponential relaxation model:** Fits `coh(t) = c_min + (baseline - c_min) × [1 - exp(-(t-t0)/τ)]` per parcel, extracting recovery time constant τ and coherence floor c_min
+8. **LLM recovery estimates:** Claude Sonnet reviews each parcel's smoothed coherence time series independently, identifying the inflection point where sustained recovery begins — providing a human-interpretable complement to the algorithmic threshold crossing
 
 ### Data Flow
 
@@ -157,16 +160,21 @@ npm run build   # Production build
 ### 3. Analyze (`--skip-analysis` to bypass)
 
 **`analyze/curvature.py`** — Smile curvature validation:
+- MAD outlier rejection (3σ) flags anomalous dates before smoothing
+- Coherence-to-variance weighting provides quality-aware interpolation
 - Wiener filter (window=11) each parcel's post-fire coherence
 - Fit degree-2 polynomial; extract curvature = a × 10⁴
-- Threshold ≥ 2.0 confirms genuine destruction pattern
+- 200-iteration bootstrap CI; `smile_valid` requires CI lower bound ≥ 2.0
 - Vertex location provides minimum delay for recovery detection
 
 **`analyze/recovery.py`** — Recovery detection (Destroyed parcels only):
 - Pre-fire baseline: 75th percentile of pre-fire coherence
-- Recovery threshold: 90% of baseline
+- Recovery threshold: 90% of baseline (capped at 1.05 for high-baseline parcels)
 - Sustained crossing: 5 consecutive pairs above threshold
 - Per-parcel minimum delay from curvature vertex (≥ 6 months)
+- Gated on `smile_valid` — only parcels with confirmed destruction are eligible
+- Exponential relaxation model fit (τ, c_min, R²) per parcel
+- LLM recovery estimates from independent time series review
 
 ### 4. Output (`--skip-output` to bypass)
 
@@ -200,7 +208,10 @@ Generates static files for the frontend:
 | ParcelNo | string | Parcel ID |
 | smile_curvature | float | Quadratic coefficient × 10⁴ |
 | vertex_months | float | Trough location (months post-fire) |
-| smile_valid | bool | curvature ≥ 2.0 |
+| smile_valid | bool | Bootstrap CI lower bound ≥ 2.0 |
+| curvature_ci_lower | float | 2.5th percentile of bootstrap curvature |
+| curvature_ci_upper | float | 97.5th percentile of bootstrap curvature |
+| n_outliers | int | MAD-rejected acquisition dates |
 
 ### recovery_detection.parquet
 
@@ -214,6 +225,10 @@ Generates static files for the frontend:
 | smile_curvature | float | From curvature analysis |
 | vertex_months | float | Curvature trough location |
 | smile_valid | bool | Curvature validation flag |
+| recovery_tau | float | Exponential relaxation time constant (months) |
+| recovery_cmin | float | Coherence floor from exponential fit |
+| recovery_r2 | float | Goodness of fit (R²); τ = NaN if < 0.3 |
+| recovery_llm | float | LLM-estimated recovery month (inflection point) |
 
 ## Notebooks
 
