@@ -75,7 +75,8 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               border: "1px solid #444",
               fontSize: 12,
             }}
-            labelStyle={{ color: "#1f77b4" }}
+            labelStyle={{ color: "#fff" }}
+            itemStyle={{ color: "#1f77b4" }}
             labelFormatter={(v) => {
               const n = Number(v);
               const pt = chartData.find((d) => d.months === n);
