@@ -75,6 +75,7 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               border: "1px solid #444",
               fontSize: 12,
             }}
+            labelStyle={{ color: "#1f77b4" }}
             labelFormatter={(v) => {
               const n = Number(v);
               const pt = chartData.find((d) => d.months === n);
@@ -110,11 +111,15 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               x={llmMonths}
               stroke="#c084fc"
               strokeDasharray="4 2"
-              label={{
-                value: "LLM",
-                fill: "#c084fc",
-                fontSize: 10,
-                position: "insideTopRight",
+              label={({ viewBox }) => {
+                const x = (viewBox as { x?: number }).x ?? 0;
+                return (
+                  <text x={x + 4} y={28} fill="#c084fc" fontSize={10}>
+                    <tspan>LLM </tspan>
+                    <tspan style={{ cursor: "help" }}>&#9432;</tspan>
+                    <title>AI-estimated recovery date from coherence time series review</title>
+                  </text>
+                );
               }}
             />
           )}
@@ -132,7 +137,7 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
             dot={false}
             strokeWidth={2}
             connectNulls
-            name="Wiener"
+            name="Smoothed"
           />
         </ComposedChart>
       </ResponsiveContainer>
