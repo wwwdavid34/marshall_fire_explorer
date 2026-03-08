@@ -171,6 +171,10 @@
   color: #bbb;
 }
 
+.summary-panel {
+  max-width: 800px;
+}
+
 .about-close {
   position: absolute;
   top: 12px;

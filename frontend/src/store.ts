@@ -15,6 +15,8 @@ interface AppState {
   setBaseLayer: (layer: BaseLayer) => void;
   showAbout: boolean;
   setShowAbout: (show: boolean) => void;
+  showSummary: boolean;
+  setShowSummary: (show: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -34,4 +36,6 @@ export const useStore = create<AppState>((set) => ({
   setBaseLayer: (layer) => set({ baseLayer: layer }),
   showAbout: false,
   setShowAbout: (show) => set({ showAbout: show }),
+  showSummary: false,
+  setShowSummary: (show) => set({ showSummary: show }),
 }));

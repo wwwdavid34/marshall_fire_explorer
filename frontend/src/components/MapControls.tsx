@@ -4,8 +4,9 @@ import { FilterControls } from "./FilterControls";
 
 export function MapControls() {
   const showAbout = useStore((s) => s.showAbout);
+  const showSummary = useStore((s) => s.showSummary);
 
-  if (showAbout) return null;
+  if (showAbout || showSummary) return null;
 
   return (
     <div className="map-controls">

@@ -1,8 +1,9 @@
 import { useStore } from "../store";
 import { AboutPanel } from "./AboutPanel";
+import { SummaryPanel } from "./SummaryPanel";
 
 export function TitleBar() {
-  const { showAbout, setShowAbout } = useStore();
+  const { showAbout, setShowAbout, showSummary, setShowSummary } = useStore();
 
   return (
     <>
@@ -32,6 +33,12 @@ export function TitleBar() {
           </a>
           <button
             className="about-button"
+            onClick={() => setShowSummary(!showSummary)}
+          >
+            {showSummary ? "Close" : "Summary"}
+          </button>
+          <button
+            className="about-button"
             onClick={() => setShowAbout(!showAbout)}
           >
             {showAbout ? "Close" : "About"}
@@ -39,6 +46,7 @@ export function TitleBar() {
         </div>
       </div>
       {showAbout && <AboutPanel onClose={() => setShowAbout(false)} />}
+      {showSummary && <SummaryPanel onClose={() => setShowSummary(false)} />}
     </>
   );
 }
