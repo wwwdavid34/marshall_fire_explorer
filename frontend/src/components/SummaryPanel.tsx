@@ -76,7 +76,7 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
     const unaffected = parcels.filter((p) => p.Condition === "Unaffected");
 
     const algoRecovered = destroyed.filter(
-      (p) => p.recovery_date != null && p.smile_valid
+      (p) => p.recovery_months_post_fire != null && p.smile_valid
     );
     const llmRecovered = destroyed.filter((p) => p.recovery_llm != null);
 
