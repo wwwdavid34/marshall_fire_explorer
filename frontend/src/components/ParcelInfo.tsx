@@ -8,9 +8,9 @@ const BADGE_COLORS: Record<string, string> = {
 };
 
 const LLM_HINT =
-  "An AI model (Claude Sonnet) independently reviews the smoothed coherence " +
-  "time series and identifies the inflection point where sustained recovery begins. " +
-  "This provides a human-interpretable complement to the algorithmic threshold crossing.";
+  "An AI model (Claude Sonnet) reviews the full-resolution smoothed coherence " +
+  "time series, constrained by building permit dates, and identifies the inflection " +
+  "point where sustained recovery begins after construction is authorized.";
 
 const CURVATURE_HINT =
   "Smile curvature measures the U-shape of post-fire InSAR coherence. " +

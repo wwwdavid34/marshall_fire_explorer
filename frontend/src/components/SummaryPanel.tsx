@@ -123,6 +123,17 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
       (a, b) => a.month - b.month
     );
 
+    // Permit timeline stats
+    const permitMonths = destroyed
+      .map((p) => p.permit_months)
+      .filter((v): v is number => v != null);
+    const withPermitAndLlm = destroyed.filter(
+      (p) => p.permit_months != null && p.recovery_llm != null
+    );
+    const permitToLlm = withPermitAndLlm.map(
+      (p) => p.recovery_llm! - p.permit_months!
+    );
+
     return {
       total,
       destroyed: destroyed.length,
@@ -134,6 +145,8 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
       llmPercent: Math.round((llmRecovered.length / destroyed.length) * 100),
       medianAlgo: Math.round(median(algoMonths)),
       medianLlm: Math.round(median(llmMonths)),
+      medianPermit: permitMonths.length > 0 ? Math.round(median(permitMonths)) : null,
+      medianPermitToRecovery: permitToLlm.length > 0 ? Math.round(median(permitToLlm)) : null,
       bins,
       cumulative: cumulativeDeduped,
     };
@@ -202,6 +215,20 @@ export function SummaryPanel({ onClose }: { onClose: () => void }) {
             label="Median Recovery (LLM)"
             value={`${stats.medianLlm} mo`}
           />
+          {stats.medianPermit != null && (
+            <StatCard
+              label="Median Permit Issuance"
+              value={`${stats.medianPermit} mo`}
+              sub="post-fire"
+            />
+          )}
+          {stats.medianPermitToRecovery != null && (
+            <StatCard
+              label="Permit → Recovery"
+              value={`${stats.medianPermitToRecovery} mo`}
+              sub="median lag"
+            />
+          )}
         </div>
 
         {/* Damage breakdown */}

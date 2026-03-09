@@ -79,6 +79,25 @@ def _prep_parcels() -> None:
         labeled["used_footprint"] = None
         logger.warning("  coherence_timeseries.parquet not found — no footprint data")
 
+    # Join first NEW CONSTRUCTION permit date
+    permits_path = ROOT / "data" / "raw" / "Permits.csv"
+    acct_path = ROOT / "data" / "raw" / "Account_Parcels.csv"
+    if permits_path.exists() and acct_path.exists():
+        fire_date = pd.Timestamp("2021-12-30")
+        permits = pd.read_csv(permits_path)
+        permits["issue_dt"] = pd.to_datetime(
+            permits["issue_dt"], format="%m/%d/%Y %I:%M:%S %p", errors="coerce"
+        )
+        acct = pd.read_csv(acct_path).rename(columns={"Parcelno": "ParcelNo"})
+        pw = permits.merge(acct, on="strap", how="inner")
+        nc = pw[(pw["issue_dt"] > fire_date) & (pw["permit_category"] == "NEW CONSTRUCTION")]
+        first_nc = nc.sort_values("issue_dt").groupby("ParcelNo").first().reset_index()
+        first_nc["permit_months"] = ((first_nc["issue_dt"] - fire_date).dt.days / 30.44).round(1)
+        labeled = labeled.merge(first_nc[["ParcelNo", "permit_months"]], on="ParcelNo", how="left")
+    else:
+        labeled["permit_months"] = None
+        logger.warning("  Permits.csv not found — no permit data")
+
     # Serialize
     labeled["recovery_date"] = labeled["recovery_date"].astype(str).replace("NaT", "")
     labeled["smile_valid"] = labeled["smile_valid"].map(
@@ -87,6 +106,7 @@ def _prep_parcels() -> None:
 
     keep = ["ParcelNo", "Condition", "recovery_date", "recovery_months_post_fire",
             "recovery_tau", "recovery_cmin", "recovery_r2", "recovery_llm",
+            "permit_months",
             "smile_curvature", "smile_valid", "curvature_ci_lower", "curvature_ci_upper",
             "building_ratio", "used_footprint",
             "StrNum", "Street", "geometry"]

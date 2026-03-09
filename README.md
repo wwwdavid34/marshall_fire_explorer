@@ -15,10 +15,10 @@ The pipeline processes 127 Sentinel-1 CSLC acquisitions into per-parcel coherenc
 
 - **1,821 parcels** with building footprints assessed: 1,104 Destroyed, 357 Damaged, 360 Unaffected (129 parcels without pre-incident structures excluded)
 - **Algorithmic recovery:** 485 of 1,104 destroyed parcels (44%) detected via sustained coherence threshold crossing, with smile curvature validation confirming genuine destruction patterns
-- **LLM recovery:** 893 of 1,104 destroyed parcels (81%) identified by Claude Sonnet reviewing smoothed coherence time series — capturing cases the threshold-based algorithm misses
-- **Median recovery time:** ~27 months (algorithmic), ~23 months (LLM) post-fire
+- **LLM recovery:** 921 of 1,111 destroyed parcels (82%) identified by Claude Sonnet reviewing full-resolution smoothed coherence time series with building permit constraints — capturing cases the threshold-based algorithm misses
+- **Median recovery time:** ~27 months (algorithmic), ~28 months (LLM) post-fire
 - Smile curvature validation (bootstrap CI lower bound >= 2.0) filters out parcels without genuine structural destruction, reducing false positives from vegetation and open land
-- The LLM approach detects recovery inflection points earlier than the conservative 5-consecutive-pair threshold algorithm, explaining the higher detection rate and shorter median time
+- The LLM approach detects recovery at higher rates than the conservative 5-consecutive-pair threshold algorithm; permit-constrained estimates ensure detections occur after construction authorization
 
 ## Methodology
 
@@ -33,7 +33,7 @@ Interferometric Synthetic Aperture Radar (InSAR) coherence measures how similar 
 5. **Smile curvature with bootstrap CI:** Degree-2 polynomial fit on post-fire smoothed coherence; 200-iteration bootstrap provides 95% confidence interval on curvature. `smile_valid` requires the entire CI lower bound ≥ 2.0
 6. **Recovery detection:** Sustained threshold crossing (90% of pre-fire 75th percentile, capped at 1.05 for high-baseline parcels, 5 consecutive pairs) with vertex-based minimum delay. Only parcels with `smile_valid = true` are eligible
 7. **Exponential relaxation model:** Fits `coh(t) = c_min + (baseline - c_min) × [1 - exp(-(t-t0)/τ)]` per parcel, extracting recovery time constant τ and coherence floor c_min
-8. **LLM recovery estimates:** Claude Sonnet reviews each parcel's smoothed coherence time series independently, identifying the inflection point where sustained recovery begins — providing a human-interpretable complement to the algorithmic threshold crossing
+8. **LLM recovery estimates:** Claude Sonnet reviews each parcel's full-resolution smoothed coherence time series (all 117 post-fire observations at 12-day cadence), constrained by NEW CONSTRUCTION permit issuance dates from Boulder County — identifying the inflection point where sustained recovery begins after construction is authorized
 
 ### Data Flow
 

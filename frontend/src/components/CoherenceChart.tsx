@@ -113,7 +113,7 @@ export function CoherenceChart({ parcel }: { parcel: ParcelProperties }) {
               stroke="#c084fc"
               strokeDasharray="4 2"
               label={{
-                value: "LLM?",
+                value: "LLM",
                 fill: "#c084fc",
                 fontSize: 10,
                 position: "top",

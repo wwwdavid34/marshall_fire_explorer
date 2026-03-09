@@ -68,11 +68,11 @@ export function AboutPanel({ onClose }: { onClose: () => void }) {
             destruction patterns are eligible.
           </p>
           <p>
-            <strong>LLM detection</strong> (purple line): An AI model
-            independently reviews each parcel's smoothed coherence time series
-            and identifies the inflection point where sustained recovery begins.
-            This captures cases the threshold-based algorithm misses and
-            provides a human-interpretable recovery estimate.
+            <strong>LLM detection</strong> (purple line): An AI model (Claude
+            Sonnet) reviews each parcel's full-resolution smoothed coherence
+            time series, constrained by building permit issuance dates, and
+            identifies the inflection point where sustained recovery begins
+            after construction is authorized.
           </p>
         </section>
 

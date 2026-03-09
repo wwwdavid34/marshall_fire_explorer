@@ -4,6 +4,7 @@ export interface ParcelProperties {
   recovery_date: string | null;
   recovery_months_post_fire: number | null;
   recovery_llm: number | null;
+  permit_months: number | null;
   smile_curvature: number | null;
   smile_valid: boolean | null;
   building_ratio: number | null;
